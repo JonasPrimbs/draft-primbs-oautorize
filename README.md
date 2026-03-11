@@ -54,7 +54,7 @@ const credential = await navigator.credentials.get({
   identity: {
     providers: [{
       configURL: 'https://as.example.com/fedcm.json',
-      clientId: 'example_client',
+      clientId: 'https://client.example.com/',
       fields: ['profile', 'email'], // Requested default scopes
       authorization: true // Indicates, that this is an OAuth authorization request
     }]
@@ -66,16 +66,16 @@ const credential = await navigator.credentials.get({
 
 ```json
 {
-  "authorization": [
+  "authorization": [ // List of intended authorization servers to use
     {
-      "authorizationServer": "https://as.example.com/",
-      "clientId": "example_client",
-      "resources": [
+      "authorizationServer": "https://as.example.com/", // Base URL of authorization server
+      "clientId": "https://client.example.com/", // The client's client ID
+      "resources": [ // List of resource servers intended to use
         "https://rs1.example.com/*",
         "https://rs.example.com/rs2/*",
       ]
     }
-  ],
+  ]
 }
 ```
 
@@ -83,8 +83,8 @@ const credential = await navigator.credentials.get({
 
 ```js
 print(credential.clientDescription.authorization[0].authorizationServer); // Returns "https://as.example.com/"
-print(credential.clientDescription.authorization[0].clientId); // Returns "example_client"
-print(credential.clientDescription.authorization[0].resources); // Returns ["https://rs1.example.com","https://rs.example.com/rs2"]
+print(credential.clientDescription.authorization[0].clientId); // Returns "https://client.example.com/"
+print(credential.clientDescription.authorization[0].resources); // Returns ["https://rs1.example.com/*","https://rs.example.com/rs2/*"]
 ```
 
 5. The web application sends a resource request using the Fetch API:
@@ -97,7 +97,7 @@ const response = await fetch('https://rs1.example.com/userdata', {
 
 6. In background, the web browser checks whether any of the credential's resources match the requested URL.
 If not, this is a normal GET request.
-Otherwise, the browser attaches the bearer token to the request in the authorization header:
+Otherwise, the browser attaches the best matching bearer token available to the request in the authorization header:
 
 ```http
 GET /userdata HTTP/1.1
@@ -115,10 +115,10 @@ WWW-Authenticate: Bearer realm="as.example.com",
                  scope="rs1_read"
 ```
 
-8. Instead of responding with this error to the fetch call, the user agent uses a dialog to inform the resource owner that the request has failed and demands more permissions.
+8. Instead of resolving the asynchronouse fetch call with this error, the user agent uses a dialog to inform the resource owner that the request has failed and demands more permissions.
 If the user clicks "accept", FedCM initiates another authorization flow with the extended scope (`profile email rs1_read`).
 In the FedCM popup containing the authorization server's authorization screen, the resource owner grants permissions to the client.
-Afterwards, the Fetch API repeats the request with the updated scope and responds to the fetch call with the final response.
+Afterwards, the Fetch API repeats the request with the updated scope and resolves the asynchronous fetch call with the final response.
 
 9. The currently granted scope can be introspected via FedCM API as follows:
 
