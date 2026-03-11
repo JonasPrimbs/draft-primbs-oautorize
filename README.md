@@ -66,6 +66,7 @@ const credential = await navigator.credentials.get({
 
 ```json
 {
+  "description": "An example application", // Description of the client displayed at authorization server
   "authorization": [ // List of intended authorization servers to use
     {
       "authorizationServer": "https://as.example.com/", // Base URL of authorization server
@@ -87,7 +88,11 @@ print(credential.clientDescription.authorization[0].clientId); // Returns "https
 print(credential.clientDescription.authorization[0].resources); // Returns ["https://rs1.example.com/*","https://rs.example.com/rs2/*"]
 ```
 
-5. The web application sends a resource request using the Fetch API:
+5. In the authorization request, the authorization server identifies the client by its client ID.
+This could be a normal client ID that is pre-registered by client developers at the authorization server.
+However, if the authorization server supports the [OAuth 2.0 Client ID Metadata Document draft](https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/), the authorization server browses the client metadata document to dynamically register the client.
+
+6. The web application sends a resource request using the Fetch API:
 
 ```js
 const response = await fetch('https://rs1.example.com/userdata', {
@@ -95,7 +100,7 @@ const response = await fetch('https://rs1.example.com/userdata', {
 });
 ```
 
-6. In background, the web browser checks whether any of the credential's resources match the requested URL.
+7. In background, the web browser checks whether any of the credential's resources match the requested URL.
 If not, this is a normal GET request.
 Otherwise, the browser attaches the best matching bearer token available to the request in the authorization header:
 
@@ -105,7 +110,7 @@ Host: rs1.example.com
 Authorization: Bearer {access-token}
 ```
 
-7. If the access token misses required scopes, the resource server answers with the following HTTP response:
+8. If the access token misses required scopes, the resource server answers with the following HTTP response:
 
 ```http
 HTTP/1.1 401 Unauthorized
@@ -115,12 +120,12 @@ WWW-Authenticate: Bearer realm="as.example.com",
                  scope="rs1_read"
 ```
 
-8. Instead of resolving the asynchronouse fetch call with this error, the user agent uses a dialog to inform the resource owner that the request has failed and demands more permissions.
+9. Instead of resolving the asynchronouse fetch call with this error, the user agent uses a dialog to inform the resource owner that the request has failed and demands more permissions.
 If the user clicks "accept", FedCM initiates another authorization flow with the extended scope (`profile email rs1_read`).
 In the FedCM popup containing the authorization server's authorization screen, the resource owner grants permissions to the client.
 Afterwards, the Fetch API repeats the request with the updated scope and resolves the asynchronous fetch call with the final response.
 
-9. The currently granted scope can be introspected via FedCM API as follows:
+10. The currently granted scope can be introspected via FedCM API as follows:
 
 ```js
 print(credential.fields); // Returns ["profile", "email", "rs1_read"]
