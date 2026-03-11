@@ -41,6 +41,10 @@ With OAuth AutoSecure, the browser puts bearer tokens into the authorization hea
 
 ## Concept
 
+### Classic OAuth Resource Request
+
+This is a classic OAuth 2.0 example where the resource owner authorizes the client which uses the access token issued by the authorization server to access protected resources from the resource server.
+
 1. The resource owner opens the web application in their web browser.
 
 ```bash
@@ -130,6 +134,14 @@ Afterwards, the Fetch API repeats the request with the updated scope and resolve
 ```js
 print(credential.fields); // Returns ["profile", "email", "rs1_read"]
 ```
+
+### Resource Request with Token Exchange
+
+This is an advanced example how a resource owner the client access at the authorization server which issues an access token to the client.
+The client exchanges this access token for a transaction token at the resource server's transaction token service before the client uses this transaction token to access protected resources.
+This is a useful mechanism to mitigate leaking access tokens accepted by multiple resource servers to a compromized resource sever.
+
+TODO
 
 ## Security Considerations
 
