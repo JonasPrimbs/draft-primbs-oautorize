@@ -1,10 +1,10 @@
-# OAuth-AutoSecure-Draft
+# OAuth-AUTOrize-Draft
 
-A draft how OAuth 2.0 can be implemented securely without developers need to care about OAuth.
+A draft how OAuth 2.0 can be implemented securely without developers need to care about OAuth by automatically request authorization (AUTOrize) based on the REST API.
 
 ## Abstract
 
-OAuth AutoSecure is a proposed OAuth-based Framework that targets three goals.
+OAuth AUTOrize is a proposed OAuth-based Framework that targets three goals.
 First, increasing web-based API security by leveraging transaction tokens for frontend-to-backend communication.
 Second, automating security-related concepts like authorization flows, token exchanges and authorizing requests, so that client developers no more need to care about authorization anymore.
 Third, finally protecting OAuth against token stealing via XSS attacks by implementing the framework into web browsers.
