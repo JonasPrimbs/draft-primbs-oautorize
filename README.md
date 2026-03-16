@@ -120,9 +120,9 @@ Authorization: Bearer {access-token}
 ```http
 HTTP/1.1 401 Unauthorized
 WWW-Authenticate: Bearer realm="as.example.com",
-                 error="insufficient_scope",
-                 error_description="The request requires higher privileges."
-                 scope="rs1_read"
+                  error="insufficient_scope",
+                  error_description="The request requires higher privileges."
+                  scope="rs1_read"
 ```
 
 9. Instead of resolving the asynchronouse fetch call with this error, the user agent uses a dialog to inform the resource owner that the request has failed and demands more permissions.
@@ -142,7 +142,199 @@ This is an advanced example how a resource owner the client access at the author
 The client exchanges this access token for a transaction token at the resource server's transaction token service before the client uses this transaction token to access protected resources.
 This is a useful mechanism to mitigate leaking access tokens accepted by multiple resource servers to a compromized resource sever.
 
-TODO
+The expected authorization flow is explained in Figure 1.
+
+```
++--------+     (1)     +-------------------+
+|        | ----------> |   Authorization   |
+|        | <---------- |      Server       |
+|        |     (2)     +-------------------+
+|        |
+|        |     (3)     +-------------------+
+| Client | ----------> | Transaction Token |
+|        | <---------- |     Service       |
+|        |     (4)     +-------------------+
+|        |
+|        |     (5)     +-------------------+
+|        | ----------> |     Resource      |
+|        | <---------- |      Server       |
+|        |     (6)     +-------------------+
++--------+
+```
+Fig. 1: Authorization Flow with transaction token.
+
+1. The client sends an authorization request to the authorization server.
+2. The authorization server issues an access token to the client.
+3. The client sends a token exchange request to the transaction token service using the access token to prove authorization.
+4. The transaction token service issues a transaction token to the client.
+5. The client sends a resource request to the resource server using the transaction token to prove authorization.
+6. The resource server issues protected resources to the client.
+
+#### Discovery
+
+To automate such a flow, the client must learn from resource server and transaction token service metadata, which tokens are required for the authorization request.
+The discovery process works as follows:
+
+1. The client introspects the protected resource metadata on `https://rs.example.com/.well-known/oauth-protected-resource/userdata`:
+
+```json
+{
+  "resource": "https://rs.example.com",
+  "authorization_servers": [
+    "https://tts.example.com" // Token from transaction token service required
+  ],
+  "token_types_supported": [
+    "urn:ietf:params:oauth:token-type:txn_token" // Requires transaction tokens
+  ],
+  "bearer_methods_supported": [
+    "header"
+  ],
+  "scopes_supported": [
+    "data_read",
+    "data_write"
+  ],
+  "resource_documentation": "https://resource.example.com/resource_documentation.html"
+}
+```
+
+2. The client introspects the transaction token service's metadata on `https://tts.example.com/.well-known/oauth-authorization-server`:
+
+```json
+{
+  "issuer": "https://tts.example.com",
+  "authorization_servers": [
+    "https://as.example.com" // Token from authorization server is accepted
+  ],
+  "token_endpoint": "https://tts.example.com/token",
+  "grant_types_supported": [
+    "urn:ietf:params:oauth:grant-type:token-exchange" // Required for transaction token services
+  ],
+  "token_endpoint_auth_methods_supported": [
+    "client_secret_basic",
+    "private_key_jwt"
+  ],
+  "token_endpoint_auth_signing_alg_values_supported": [
+    "RS256",
+    "ES256"
+  ],
+  "userinfo_endpoint": "https://tts.example.com/userinfo",
+  "jwks_uri": "https://tts.example.com/jwks.json",
+  "registration_endpoint": "https://tts.example.com/register",
+  "scopes_supported": [
+    "data_read",
+    "data_write"
+  ],
+  "service_documentation":
+    "http://tts.example.com/service_documentation.html"
+}
+```
+
+3. The client introspects the authorization server's metadata on `https://as.example.com/.well-known/oauth-authorization-server`:
+
+```json
+{
+  "issuer": "https://as.example.com",
+  "authorization_endpoint": "https://as.example.com/authorize", // Endpoint for authorization request
+  "token_endpoint": "https://as.example.com/token", // Endpoint for token request
+  "token_endpoint_auth_methods_supported": [
+    "client_secret_basic",
+    "private_key_jwt"
+  ],
+  "token_endpoint_auth_signing_alg_values_supported": [
+    "RS256",
+    "ES256"
+  ],
+  "userinfo_endpoint": "https://as.example.com/userinfo",
+  "jwks_uri": "https://as.example.com/jwks.json",
+  "registration_endpoint": "https://as.example.com/register",
+  "scopes_supported": [
+    "openid",
+    "profile",
+    "email",
+    "offline_access",
+    "data_read",
+    "data_write"
+  ],
+  "response_types_supported": [
+    "code"
+  ],
+  "service_documentation": "http://as.example.com/service_documentation.html"
+}
+```
+
+#### Obtain Authorization
+
+To obtain authorization, the client must follow these steps after obtaining an access token from the authorization server `https://as.example.com`:
+
+1. Request a transaction token from `https://tts.example.com/token` with the access token from `https://as.example.com`:
+
+```http
+POST /token HTTP/1.1
+Host: tts.example.com
+Authorization: Basic Base64("https%3A//client.example.com:")
+Content-Type: application/x-ww-form-urlencoded
+
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange&
+resource=https://rs.example.com/userdata& // Resource identifier -> Resolves audience
+subject_token=accVkjcJyb4BWCxGsndESCJQbdFMogUC5PbRDqceLTC& // Access token from https://as.example.com
+subject_token_type=urn:ietf:params:oauth:token-type:access_token& // Request with an access token
+requested_token_type=urn:ietf:params:oauth:token-type:txn_token // Request a transaction token
+```
+
+2. The transaction token service issues a transaction token:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: no-cache, no-store
+
+{
+  "access_token":"eyJhbGciOiJFUzI1NiIsImtpZCI6IjllciJ9.eyJhdWQiOiJo
+    dHRwczovL2JhY2tlbmQuZXhhbXBsZS5jb20iLCJpc3MiOiJodHRwczovL2FzLmV
+    4YW1wbGUuY29tIiwiZXhwIjoxNDQxOTE3NTkzLCJpYXQiOjE0NDE5MTc1MzMsIn
+    N1YiI6ImJkY0BleGFtcGxlLmNvbSIsInNjb3BlIjoiYXBpIn0.40y3ZgQedw6rx
+    f59WlwHDD9jryFOr0_Wh3CGozQBihNBhnXEQgU85AI9x3KmsPottVMLPIWvmDCM
+    y5-kdXjwhw", // The transaction token
+  "issued_token_type": "urn:ietf:params:oauth:token-type:txn_token",
+  "token_type":"Bearer",
+  "expires_in":60
+}
+```
+
+#### Resource Request
+
+To request the protected resource, the client performs the following request:
+
+```http
+GET /userdata HTTP/1.1
+Host: rs.example.com
+Authorization: Bearer eyJhbGciOiJFUzI1NiIsImtpZCI6IjllciJ9.eyJhdWQiOiJodHRwczovL2JhY2tlbmQuZXhhbXBsZS5jb20iLCJpc3MiOiJodHRwczovL2FzLmV4YW1wbGUuY29tIiwiZXhwIjoxNDQxOTE3NTkzLCJpYXQiOjE0NDE5MTc1MzMsInN1YiI6ImJkY0BleGFtcGxlLmNvbSIsInNjb3BlIjoiYXBpIn0.40y3ZgQedw6rxf59WlwHDD9jryFOr0_Wh3CGozQBihNBhnXEQgU85AI9x3KmsPottVMLPIWvmDCMy5-kdXjwhw
+
+
+```
+
+## Edge Cases
+
+### Multiple Chained Authorization Servers
+
+The following protected resource metadata lists one transaction token service and one authorization server.
+
+```json
+{
+  "resource": "https://rs.example.com",
+  "authorization_servers": [
+    "https://tts.example.com", // Transaction token service
+    "https://as.example.com" // Authorization server
+  ],
+  ...
+}
+```
+
+The client needs an access token from the authorization server to exchange it for an access token at the transaction token service.
+Therefore, the shortest way to obtain authorization is requesting an access token from the authorization server directly.
+Since the client sends the request with a valid `credential` object from the authorization server, the client will prefer the access token issued by `https://as.example.com`.
+If the access token has no sufficient scope, the client will try to extend the scope.
+If extending the scope fails, or the client has no matching audience, the client will fall back to the alternative authorization server, `https://tts.example.com`.
 
 ## Security Considerations
 
