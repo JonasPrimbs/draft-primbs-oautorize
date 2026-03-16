@@ -243,12 +243,21 @@ The discovery process works as follows:
     "client_secret_basic",
     "private_key_jwt"
   ],
+  "authorization_servers": [
+    "https://as.example.com" // Accepts token exchanges with tokens from itself
+  ],
   "token_endpoint_auth_signing_alg_values_supported": [
     "RS256",
     "ES256"
   ],
+  "grant_types_supported": [
+    "authorization_code", // Supports authorization code grant
+    "refresh_token", // Supports refresh token grant
+    "urn:ietf:params:oauth:grant-type:token-exchange" // Supports token exchange
+  ],
   "token_types_supported": [
-    "urn:ietf:params:oauth:token-type:access_token" // can issue access tokens
+    "urn:ietf:params:oauth:token-type:access_token", // can issue access tokens
+    "urn:ietf:params:oauth:token-type:txn_token" // can also issue transaction tokens
   ],
   "userinfo_endpoint": "https://as.example.com/userinfo",
   "jwks_uri": "https://as.example.com/jwks.json",
