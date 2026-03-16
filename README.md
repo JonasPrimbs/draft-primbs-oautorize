@@ -209,6 +209,9 @@ The discovery process works as follows:
   "grant_types_supported": [
     "urn:ietf:params:oauth:grant-type:token-exchange" // Required for transaction token services
   ],
+  "token_types_supported": [
+    "urn:ietf:params:oauth:token-type:txn_token" // Can issue transaction tokens
+  ],
   "token_endpoint_auth_methods_supported": [
     "client_secret_basic",
     "private_key_jwt"
@@ -243,6 +246,9 @@ The discovery process works as follows:
   "token_endpoint_auth_signing_alg_values_supported": [
     "RS256",
     "ES256"
+  ],
+  "token_types_supported": [
+    "urn:ietf:params:oauth:token-type:access_token" // can issue access tokens
   ],
   "userinfo_endpoint": "https://as.example.com/userinfo",
   "jwks_uri": "https://as.example.com/jwks.json",
